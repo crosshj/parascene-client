@@ -1,14 +1,14 @@
 # parascene-client
 
-Minimal static HTML + Vercel functions: **Sign in with Parascene**, **signed HttpOnly session cookie**, **`GET /api/session`** (loads profile after refresh, refreshes tokens when needed), **`POST /api/logout`**.
+Minimal static HTML + Vercel functions: **Sign in with Parascene**, **signed HttpOnly session cookie**, **`GET /api/session`**, **`POST /api/logout`**.
 
 Details: [Log in with Parascene](https://www.parascene.com/help/developer/login-with-parascene).
 
 ## Flow
 
 1. **`GET /api/auth/start`** — PKCE + HttpOnly PKCE cookies → **302** to Parascene `/oauth/authorize`.
-2. **`/callback.html`** — **`POST /api/exchange`** → clears PKCE cookies, sets **`psn_session`** (HMAC-signed; holds access + refresh tokens + expiry + base URL). Redirects **/**.
-3. **`GET /api/session`** — Reads **`psn_session`**, verifies signature, refreshes access token with **`refresh_token`** when near expiry, returns **`userinfo`** from Parascene.
+2. **`GET /api/auth/callback`** — Parascene redirects here with `?code=` / `?error=`. This handler exchanges the code (server-side), clears PKCE cookies, sets **`psn_session`**, **302** to **`/`**. No static `callback.html`.
+3. **`GET /api/session`** — Reads **`psn_session`**, refreshes access token when needed, returns **`userinfo`**.
 4. **`POST /api/logout`** — Clears **`psn_session`**.
 
 The browser **never** sees raw tokens; only the server decodes the cookie (signature verified with `PARASCENE_SESSION_SECRET` or `PARASCENE_API_KEY`).
@@ -22,9 +22,9 @@ The browser **never** sees raw tokens; only the server decodes the cookie (signa
 
 ## Parascene setup
 
-Register redirect **`https://<project>.vercel.app/callback.html`** (and localhost for `vercel dev`).
+Register redirect **`https://<project>.vercel.app/api/auth/callback`** (and e.g. `http://localhost:3000/api/auth/callback` for `vercel dev`). Must match **exactly** what **`/api/auth/start`** sends (same origin + path).
 
-**Avatars:** `GET /oauth/userinfo` can return a **root-relative** `picture` path (e.g. `/api/images/...`). Browsers would load that on your Vercel host and 404. This sample **`GET /api/session`** rewrites `picture` to an absolute URL using **`PARASCENE_BASE_URL`**, and the home page does the same for the `<img>` as a backup.
+**Avatars:** `GET /oauth/userinfo` may return a root-relative **`picture`**. This sample’s **`GET /api/session`** turns that into an absolute URL using **`PARASCENE_BASE_URL`**.
 
 ## Deploy
 

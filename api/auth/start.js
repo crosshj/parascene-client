@@ -1,11 +1,5 @@
 const crypto = require('node:crypto');
-
-const COOKIE = {
-	STATE: 'psn_oauth_state',
-	VERIFIER: 'psn_oauth_verifier',
-	REDIRECT: 'psn_oauth_redirect',
-	BASE: 'psn_oauth_base'
-};
+const { COOKIE } = require('../lib/oauth-cookies');
 
 function b64url(buf) {
 	return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
@@ -27,7 +21,7 @@ function cookieAttr({ secure, maxAge }) {
 function originFromReq(req) {
 	const host = req.headers['x-forwarded-host'] || req.headers.host || '';
 	const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-	const redirect_uri = `${proto}://${host}/callback.html`;
+	const redirect_uri = `${proto}://${host}/api/auth/callback`;
 	return { proto, redirect_uri };
 }
 
