@@ -20,9 +20,6 @@
 			var err = params.get('error');
 			var code = params.get('code');
 			var returnedState = params.get('state');
-			var expectedState = sessionStorage.getItem('psn_state');
-			var verifier = sessionStorage.getItem('psn_pkce');
-			var redirect = sessionStorage.getItem('psn_redirect');
 
 			function show(obj) {
 				document.getElementById('out').textContent = JSON.stringify(obj, null, 2);
@@ -38,30 +35,20 @@
 				show(Object.fromEntries(params));
 				return;
 			}
-			if (!code || !returnedState || returnedState !== expectedState) {
-				document.getElementById('status').textContent = 'Invalid state or missing code.';
-				show({ code: !!code, stateOk: returnedState === expectedState });
-				return;
-			}
-			if (!verifier || !redirect) {
-				document.getElementById('status').textContent = 'Missing PKCE session (open Sign in from the home page).';
+			if (!code || !returnedState) {
+				document.getElementById('status').textContent = 'Missing code or state.';
+				show({ code: !!code, state: returnedState });
 				return;
 			}
 
 			fetch('/api/exchange', {
 				method: 'POST',
+				credentials: 'same-origin',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					code: code,
-					redirect_uri: redirect,
-					code_verifier: verifier
-				})
+				body: JSON.stringify({ code: code, state: returnedState })
 			})
 				.then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); })
 				.then(async function (res) {
-					sessionStorage.removeItem('psn_pkce');
-					sessionStorage.removeItem('psn_state');
-					sessionStorage.removeItem('psn_redirect');
 					if (!res.ok) {
 						document.getElementById('status').textContent = 'Token exchange failed (' + res.status + ')';
 						show(res.body);
@@ -73,7 +60,7 @@
 						show(res.body);
 						return;
 					}
-					var base = (window.PSN_BASE || 'https://www.parascene.com').replace(/\/$/, '');
+					var base = (res.body.parascene_base_url || 'https://www.parascene.com').replace(/\/$/, '');
 					var ui = await fetch(base + '/oauth/userinfo', {
 						headers: { Authorization: 'Bearer ' + at }
 					});
@@ -87,7 +74,5 @@
 				});
 		})();
 	</script>
-	<!-- Match index.html if you use a non-production Parascene host -->
-	<script>window.PSN_BASE = 'https://www.parascene.com';</script>
 </body>
 </html>

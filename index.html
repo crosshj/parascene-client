@@ -6,60 +6,32 @@
 	<title>Parascene sign-in (minimal demo)</title>
 	<style>
 		body { font-family: system-ui, sans-serif; max-width: 36rem; margin: 2rem auto; padding: 0 1rem; }
-		button { padding: 0.5rem 1rem; cursor: pointer; }
+		a.button, button {
+			display: inline-block;
+			padding: 0.5rem 1rem;
+			cursor: pointer;
+			text-decoration: none;
+			color: inherit;
+			border: 1px solid #888;
+			border-radius: 6px;
+			background: #eee;
+			font: inherit;
+		}
+		a.button:hover, button:hover { background: #e0e0e0; }
 		code { font-size: 0.85em; }
 	</style>
 </head>
 <body>
 	<h1>Parascene demo</h1>
-	<p>PKCE in the browser; token exchange uses your API key on the server only (<code>/api/exchange</code>).</p>
-	<p><button type="button" id="signin">Sign in with Parascene</button></p>
-	<p id="err" style="color: crimson;"></p>
-	<!-- Same public client_id you registered under Connections → Apps you build (not secret; also in your authorize URL). -->
-	<script>window.PSN_CLIENT_ID = 'YOUR_PUBLIC_CLIENT_ID';</script>
-	<script>
-		function b64url(bytes) {
-			var bin = '';
-			bytes.forEach(function (b) { bin += String.fromCharCode(b); });
-			return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-		}
-		async function makePkce() {
-			var ver = new Uint8Array(32);
-			crypto.getRandomValues(ver);
-			var verifier = b64url(ver);
-			var digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-			var challenge = b64url(new Uint8Array(digest));
-			return { verifier: verifier, challenge: challenge };
-		}
-		function randomState() {
-			var a = new Uint8Array(16);
-			crypto.getRandomValues(a);
-			return b64url(a);
-		}
-		var PSN_BASE = (window.PSN_BASE || 'https://www.parascene.com').replace(/\/$/, '');
-		document.getElementById('signin').addEventListener('click', async function () {
-			document.getElementById('err').textContent = '';
-			var clientId = window.PSN_CLIENT_ID;
-			if (!clientId || clientId === 'YOUR_PUBLIC_CLIENT_ID') {
-				document.getElementById('err').textContent = 'Set window.PSN_CLIENT_ID in this file to your public OAuth client_id.';
-				return;
-			}
-			var redirect = window.location.origin + '/callback.html';
-			var pk = await makePkce();
-			var state = randomState();
-			sessionStorage.setItem('psn_pkce', pk.verifier);
-			sessionStorage.setItem('psn_state', state);
-			sessionStorage.setItem('psn_redirect', redirect);
-			var u = new URL(PSN_BASE + '/oauth/authorize');
-			u.searchParams.set('response_type', 'code');
-			u.searchParams.set('client_id', clientId);
-			u.searchParams.set('redirect_uri', redirect);
-			u.searchParams.set('state', state);
-			u.searchParams.set('scope', 'openid profile');
-			u.searchParams.set('code_challenge_method', 'S256');
-			u.searchParams.set('code_challenge', pk.challenge);
-			window.location.href = u.toString();
-		});
-	</script>
+	<p>
+		Sign in uses <code>GET /api/auth/start</code>: your server issues PKCE, sets HttpOnly cookies, and redirects to Parascene.
+		Token exchange uses <code>PARASCENE_API_KEY</code> only in <code>POST /api/exchange</code>.
+	</p>
+	<p>
+		<a class="button" href="/api/auth/start">Sign in with Parascene</a>
+	</p>
+	<p style="color: #666; font-size: 0.9rem;">
+		Requires <code>PARASCENE_API_KEY</code> and <code>PARASCENE_CLIENT_ID</code> in Vercel (no client id in this file).
+	</p>
 </body>
 </html>

@@ -1,9 +1,34 @@
 /**
- * Server-only: exchange OAuth code for tokens using your Parascene API key.
- * Never expose PARASCENE_API_KEY to the browser.
+ * Server-only: exchange OAuth code using API key + PKCE verifier from HttpOnly cookies.
  */
 
-export default async function handler(req, res) {
+const COOKIE = {
+	STATE: 'psn_oauth_state',
+	VERIFIER: 'psn_oauth_verifier',
+	REDIRECT: 'psn_oauth_redirect',
+	BASE: 'psn_oauth_base'
+};
+
+function parseCookies(header) {
+	const out = {};
+	if (!header || typeof header !== 'string') return out;
+	for (const part of header.split(';')) {
+		const i = part.indexOf('=');
+		if (i === -1) continue;
+		const k = part.slice(0, i).trim();
+		const v = decodeURIComponent(part.slice(i + 1).trim());
+		out[k] = v;
+	}
+	return out;
+}
+
+function clearCookie(name, secure) {
+	const p = [`${name}=`, 'Path=/', 'Max-Age=0', 'HttpOnly', 'SameSite=Lax'];
+	if (secure) p.push('Secure');
+	return p.join('; ');
+}
+
+module.exports = async function handler(req, res) {
 	if (req.method !== 'POST') {
 		res.status(405).setHeader('Allow', 'POST').json({ error: 'method_not_allowed' });
 		return;
@@ -14,7 +39,20 @@ export default async function handler(req, res) {
 	const base =
 		(process.env.PARASCENE_BASE_URL || 'https://www.parascene.com').replace(/\/$/, '');
 
+	const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+	const secure = proto === 'https';
+
+	const clearAll = () => {
+		res.setHeader('Set-Cookie', [
+			clearCookie(COOKIE.STATE, secure),
+			clearCookie(COOKIE.VERIFIER, secure),
+			clearCookie(COOKIE.REDIRECT, secure),
+			clearCookie(COOKIE.BASE, secure)
+		]);
+	};
+
 	if (!apiKey || !clientId) {
+		clearAll();
 		res.status(500).json({ error: 'server_misconfigured', hint: 'Set PARASCENE_API_KEY and PARASCENE_CLIENT_ID' });
 		return;
 	}
@@ -23,16 +61,38 @@ export default async function handler(req, res) {
 	try {
 		body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body;
 	} catch {
+		clearAll();
 		res.status(400).json({ error: 'invalid_json' });
 		return;
 	}
 
 	const code = typeof body.code === 'string' ? body.code.trim() : '';
-	const redirect_uri = typeof body.redirect_uri === 'string' ? body.redirect_uri.trim() : '';
-	const code_verifier = typeof body.code_verifier === 'string' ? body.code_verifier.trim() : '';
+	const stateBody = typeof body.state === 'string' ? body.state.trim() : '';
 
-	if (!code || !redirect_uri || !code_verifier) {
-		res.status(400).json({ error: 'missing_fields', need: ['code', 'redirect_uri', 'code_verifier'] });
+	if (!code || !stateBody) {
+		clearAll();
+		res.status(400).json({ error: 'missing_fields', need: ['code', 'state'] });
+		return;
+	}
+
+	const cookies = parseCookies(req.headers.cookie);
+	const stateCookie = cookies[COOKIE.STATE];
+	const code_verifier = cookies[COOKIE.VERIFIER];
+	const redirect_uri = cookies[COOKIE.REDIRECT];
+	const baseCookie = cookies[COOKIE.BASE] || base;
+
+	if (!stateCookie || !code_verifier || !redirect_uri) {
+		clearAll();
+		res.status(400).json({
+			error: 'missing_oauth_session',
+			error_description: 'Start sign-in from this site (GET /api/auth/start) so PKCE cookies are set.'
+		});
+		return;
+	}
+
+	if (stateBody !== stateCookie) {
+		clearAll();
+		res.status(400).json({ error: 'state_mismatch' });
 		return;
 	}
 
@@ -61,10 +121,13 @@ export default async function handler(req, res) {
 		data = { raw: text };
 	}
 
+	clearAll();
+
 	if (!tokenRes.ok) {
 		res.status(tokenRes.status).json(data);
 		return;
 	}
 
+	data.parascene_base_url = baseCookie.replace(/\/$/, '');
 	res.status(200).json(data);
-}
+};
