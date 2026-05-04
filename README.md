@@ -1,6 +1,6 @@
 # parascene-client
 
-Minimal static HTML + Vercel functions: **Sign in with Parascene**, **signed HttpOnly session cookie**, **`GET /api/session`**, **`POST /api/logout`**.
+Minimal static HTML + Vercel functions: **Sign in with Parascene**, **signed HttpOnly session cookie**, **`GET /api/session`**, **`GET /api/demo-feed`** (proxied `GET /api/feed` with your access token), **`POST /api/logout`**.
 
 Details: [Log in with Parascene](https://www.parascene.com/help/developer/login-with-parascene).
 
@@ -9,7 +9,8 @@ Details: [Log in with Parascene](https://www.parascene.com/help/developer/login-
 1. **`GET /api/auth/start`** — PKCE + HttpOnly PKCE cookies → **302** to Parascene `/oauth/authorize`.
 2. **`GET /api/auth/callback`** — Parascene redirects here with `?code=` / `?error=`. This handler exchanges the code (server-side), clears PKCE cookies, sets **`psn_session`**, **302** to **`/`**. No static `callback.html`.
 3. **`GET /api/session`** — Reads **`psn_session`**, refreshes access token when needed, returns **`userinfo`**.
-4. **`POST /api/logout`** — Clears **`psn_session`**.
+4. **`GET /api/demo-feed`** — Uses the session access token to call Parascene **`GET /api/feed`** and returns a trimmed list for the demo UI (see **[API overview](https://www.parascene.com/help/developer/api)** — *Feed & discovery*).
+5. **`POST /api/logout`** — Clears **`psn_session`**.
 
 The browser **never** sees raw tokens; only the server decodes the cookie (signature verified with `PARASCENE_SESSION_SECRET` or `PARASCENE_API_KEY`).
 

@@ -246,18 +246,138 @@
 			margin-bottom: calc(var(--space) * 2);
 		}
 
-		.code-block {
-			margin: 0;
-			padding: calc(var(--space) * 2);
+		.feed-hint {
+			margin: 0 0 calc(var(--space) * 3);
+			font-size: 0.8125rem;
+			line-height: 1.5;
+			color: var(--text-muted);
+		}
+
+		.feed-hint code {
 			font-family: var(--font-mono);
-			font-size: 0.7rem;
-			line-height: 1.55;
+			font-size: 0.75rem;
 			color: #c4bdd9;
+		}
+
+		.feed-hint a {
+			color: var(--brand-400);
+		}
+
+		.feed-hint a:hover {
+			color: var(--brand-500);
+		}
+
+		.feed-loading {
+			margin: 0 0 calc(var(--space) * 2);
+			text-align: center;
+		}
+
+		.feed-list {
+			display: flex;
+			flex-direction: column;
+			gap: calc(var(--space) * 2);
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+
+		.feed-row {
+			display: flex;
+			gap: calc(var(--space) * 2);
+			align-items: stretch;
+			min-width: 0;
+			padding: calc(var(--space) * 2);
 			background: #0d0b14;
 			border: 1px solid var(--border);
+			border-radius: 10px;
+			text-decoration: none;
+			color: inherit;
+			transition: border-color 0.15s ease, background 0.15s ease;
+		}
+
+		a.feed-row:hover {
+			border-color: rgba(167, 139, 250, 0.35);
+			background: rgba(124, 58, 237, 0.06);
+		}
+
+		.feed-row--static {
+			cursor: default;
+		}
+
+		.feed-row--tip .feed-row__cta {
+			margin-top: calc(var(--space) * 1);
+			font-size: 0.8125rem;
+			font-weight: 600;
+			color: var(--brand-400);
+		}
+
+		.feed-thumb-wrap {
+			flex-shrink: 0;
+			width: 72px;
+			height: 72px;
 			border-radius: 8px;
-			overflow: auto;
-			max-height: 200px;
+			overflow: hidden;
+			background: var(--surface-2);
+			border: 1px solid var(--border);
+		}
+
+		.feed-thumb-wrap--placeholder {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 1.25rem;
+			font-weight: 650;
+			color: var(--brand-400);
+			background: linear-gradient(145deg, rgba(124, 58, 237, 0.2), rgba(13, 11, 20, 0.9));
+		}
+
+		.feed-thumb {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+		}
+
+		.feed-row__body {
+			min-width: 0;
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			gap: 4px;
+		}
+
+		.feed-row__title {
+			margin: 0;
+			font-size: 0.9375rem;
+			font-weight: 650;
+			letter-spacing: -0.02em;
+			line-height: 1.35;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			display: -webkit-box;
+			-webkit-line-clamp: 2;
+			-webkit-box-orient: vertical;
+		}
+
+		.feed-row__author {
+			margin: 0;
+			font-size: 0.8125rem;
+			color: var(--text-muted);
+		}
+
+		.feed-row__meta {
+			margin: 0;
+			font-size: 0.75rem;
+			color: var(--text-muted);
+			opacity: 0.9;
+		}
+
+		.feed-row__msg {
+			margin: 0;
+			font-size: 0.8125rem;
+			color: var(--text-muted);
+			line-height: 1.45;
 		}
 
 		.loading-block {
@@ -373,8 +493,22 @@
 						</div>
 						<span class="pill">Signed in</span>
 					</div>
-					<span class="section-label">Profile</span>
-					<pre id="userinfo-raw" class="code-block" aria-label="Profile JSON"></pre>
+					<span class="section-label">Your Parascene feed</span>
+					<p class="feed-hint">
+						This demo calls <code>GET /api/feed</code> on Parascene using your OAuth access token—the same route the
+						site uses for the home feed (<a
+							href="https://www.parascene.com/help/developer/api"
+							target="_blank"
+							rel="noopener noreferrer"
+							>API overview</a
+						>).
+					</p>
+					<p id="feed-loading" class="feed-loading muted">Loading feed…</p>
+					<ul id="feed-preview" class="feed-list is-hidden" aria-label="Feed preview"></ul>
+					<p id="feed-empty" class="feed-hint is-hidden" style="margin-bottom: calc(var(--space) * 3)">
+						No items returned (or the feed could not be loaded). Open Parascene to follow creators and populate your
+						feed.
+					</p>
 					<button type="button" class="btn--quiet" id="logout">Sign out</button>
 				</div>
 			</div>
@@ -429,6 +563,115 @@
 			if (p.startsWith('/')) return b + p;
 			return p;
 		}
+		function feedInitial(title) {
+			var t = (title || '?').trim();
+			return t ? t.charAt(0).toUpperCase() : '?';
+		}
+
+		function renderFeedPreview(payload) {
+			var list = document.getElementById('feed-preview');
+			var empty = document.getElementById('feed-empty');
+			var loading = document.getElementById('feed-loading');
+			loading.classList.add('is-hidden');
+			list.innerHTML = '';
+
+			var items = payload && Array.isArray(payload.items) ? payload.items : [];
+			if (!payload || payload.ok === false || items.length === 0) {
+				empty.classList.remove('is-hidden');
+				return;
+			}
+			empty.classList.add('is-hidden');
+			list.classList.remove('is-hidden');
+
+			items.forEach(function (it) {
+				if (it.kind === 'tip') {
+					var tipEl = document.createElement(it.href ? 'a' : 'div');
+					tipEl.className = 'feed-row feed-row--tip' + (it.href ? '' : ' feed-row--static');
+					if (it.href) {
+						tipEl.href = it.href;
+						tipEl.target = '_blank';
+						tipEl.rel = 'noopener noreferrer';
+					}
+					var tipInner = document.createElement('div');
+					tipInner.style.flex = '1';
+					var tipTitle = document.createElement('p');
+					tipTitle.className = 'feed-row__title';
+					tipTitle.textContent = it.title || 'Tip';
+					tipInner.appendChild(tipTitle);
+					if (it.message) {
+						var tipMsg = document.createElement('p');
+						tipMsg.className = 'feed-row__msg';
+						tipMsg.textContent = it.message;
+						tipInner.appendChild(tipMsg);
+					}
+					if (it.cta && it.href) {
+						var cta = document.createElement('span');
+						cta.className = 'feed-row__cta';
+						cta.textContent = it.cta;
+						tipInner.appendChild(cta);
+					}
+					tipEl.appendChild(tipInner);
+					list.appendChild(tipEl);
+					return;
+				}
+
+				var href = it.href || null;
+				var row = document.createElement(href ? 'a' : 'div');
+				row.className = 'feed-row' + (href ? '' : ' feed-row--static');
+				if (href) {
+					row.href = href;
+					row.target = '_blank';
+					row.rel = 'noopener noreferrer';
+				}
+
+				var thumbWrap = document.createElement('div');
+				thumbWrap.className = 'feed-thumb-wrap' + (it.thumb ? '' : ' feed-thumb-wrap--placeholder');
+				if (it.thumb) {
+					var im = document.createElement('img');
+					im.className = 'feed-thumb';
+					im.alt = '';
+					im.loading = 'lazy';
+					im.decoding = 'async';
+					im.src = it.thumb;
+					thumbWrap.appendChild(im);
+				} else {
+					thumbWrap.textContent = feedInitial(it.title);
+				}
+				row.appendChild(thumbWrap);
+
+				var body = document.createElement('div');
+				body.className = 'feed-row__body';
+				var titleEl = document.createElement('p');
+				titleEl.className = 'feed-row__title';
+				titleEl.textContent = it.title || (it.kind === 'blog' ? 'Blog post' : 'Creation');
+				body.appendChild(titleEl);
+				if (it.author) {
+					var auth = document.createElement('p');
+					auth.className = 'feed-row__author';
+					auth.textContent = it.author;
+					body.appendChild(auth);
+				}
+				if (it.kind === 'blog' && it.summary) {
+					var sum = document.createElement('p');
+					sum.className = 'feed-row__msg';
+					sum.style.marginTop = '2px';
+					sum.textContent = it.summary;
+					body.appendChild(sum);
+				}
+				if (it.kind === 'creation' && (it.like_count > 0 || it.comment_count > 0)) {
+					var meta = document.createElement('p');
+					meta.className = 'feed-row__meta';
+					var parts = [];
+					if (it.like_count > 0) parts.push(it.like_count + ' likes');
+					if (it.comment_count > 0) parts.push(it.comment_count + ' comments');
+					meta.textContent = parts.join(' · ');
+					body.appendChild(meta);
+				}
+				row.appendChild(body);
+				list.appendChild(row);
+			});
+		}
+
 		function showUser(data) {
 			document.getElementById('loading').classList.add('is-hidden');
 			document.getElementById('guest').classList.add('is-hidden');
@@ -447,7 +690,27 @@
 			} else {
 				img.hidden = true;
 			}
-			document.getElementById('userinfo-raw').textContent = JSON.stringify(u, null, 2);
+
+			document.getElementById('feed-loading').classList.remove('is-hidden');
+			document.getElementById('feed-preview').classList.add('is-hidden');
+			document.getElementById('feed-empty').classList.add('is-hidden');
+
+			fetch('/api/demo-feed', { credentials: 'same-origin' })
+				.then(function (r) {
+					if (r.status === 401) {
+						window.location.reload();
+						return null;
+					}
+					return r.json();
+				})
+				.then(function (payload) {
+					if (!payload) return;
+					renderFeedPreview(payload);
+				})
+				.catch(function () {
+					document.getElementById('feed-loading').classList.add('is-hidden');
+					renderFeedPreview({ ok: false, items: [] });
+				});
 		}
 		fetch('/api/session', { credentials: 'same-origin' })
 			.then(function (r) { return r.json(); })
