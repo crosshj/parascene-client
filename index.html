@@ -48,18 +48,23 @@
 				radial-gradient(ellipse 80% 50% at 100% 80%, rgba(91, 33, 182, 0.12), transparent 45%);
 		}
 
-		/* Centered shell — typical sign-in layout */
+		/* Shell: guest stays centered; session view uses width and top alignment */
 		.shell {
 			min-height: 100vh;
 			display: flex;
-			align-items: center;
+			align-items: flex-start;
 			justify-content: center;
-			padding: calc(var(--space) * 3);
+			padding: calc(var(--space) * 4) calc(var(--space) * 3) calc(var(--space) * 6);
 		}
 
 		.wrap {
 			width: 100%;
+			max-width: 880px;
+		}
+
+		.wrap--signin {
 			max-width: 400px;
+			margin: 0 auto;
 		}
 
 		.card {
@@ -161,66 +166,84 @@
 			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 		}
 
-		.btn--quiet {
-			width: 100%;
-			padding: 12px;
-			margin-top: calc(var(--space) * 2);
-			font-size: 0.875rem;
-			font-weight: 500;
-			color: var(--text-muted);
-			background: transparent;
-			border: 1px solid var(--border-light);
-			border-radius: 10px;
-			cursor: pointer;
+		.btn-sign-out {
+			flex-shrink: 0;
+			padding: 8px 14px;
+			font-size: 0.8125rem;
+			font-weight: 600;
 			font-family: inherit;
+			color: var(--text-muted);
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid var(--border-light);
+			border-radius: 8px;
+			cursor: pointer;
 			transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 		}
 
-		.btn--quiet:hover {
+		.btn-sign-out:hover {
 			color: var(--text);
-			border-color: rgba(255, 255, 255, 0.2);
-			background: rgba(255, 255, 255, 0.04);
+			border-color: rgba(248, 113, 113, 0.45);
+			background: rgba(127, 29, 29, 0.2);
 		}
 
-		.kicker {
-			font-size: 0.75rem;
+		.card--session {
+			padding: 0;
+			overflow: hidden;
+		}
+
+		.session-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: calc(var(--space) * 2);
+			padding: 20px calc(var(--space) * 3);
+			background: rgba(0, 0, 0, 0.2);
+			border-bottom: 1px solid var(--border);
+		}
+
+		@media (max-width: 480px) {
+			.session-header {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.session-identity {
+				width: 100%;
+			}
+
+			.btn-sign-out {
+				width: 100%;
+			}
+		}
+
+		.session-identity {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			min-width: 0;
+		}
+
+		.session-body {
+			padding: calc(var(--space) * 3);
+		}
+
+		.session-kicker {
+			margin: 0 0 calc(var(--space) * 2);
+			font-size: 0.6875rem;
 			font-weight: 600;
 			letter-spacing: 0.08em;
 			text-transform: uppercase;
 			color: var(--brand-400);
-			text-align: center;
-			margin: 0 0 calc(var(--space) * 2);
-		}
-
-		.row-top {
-			display: flex;
-			align-items: flex-start;
-			justify-content: space-between;
-			gap: calc(var(--space) * 2);
-			margin-bottom: calc(var(--space) * 4);
-		}
-
-		.pill {
-			font-size: 0.6875rem;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.06em;
-			color: var(--brand-400);
-			background: rgba(124, 58, 237, 0.18);
-			padding: 6px 10px;
-			border-radius: var(--radius-pill);
-			border: 1px solid rgba(167, 139, 250, 0.25);
-			white-space: nowrap;
 		}
 
 		.avatar {
-			width: 64px;
-			height: 64px;
+			width: 48px;
+			height: 48px;
 			border-radius: 50%;
 			object-fit: cover;
 			background: var(--surface-2);
 			border: 2px solid var(--border-light);
-			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 		}
 
 		.name {
@@ -238,12 +261,11 @@
 
 		.section-label {
 			display: block;
-			font-size: 0.75rem;
-			font-weight: 600;
-			text-transform: uppercase;
-			letter-spacing: 0.06em;
-			color: var(--text-muted);
-			margin-bottom: calc(var(--space) * 2);
+			font-size: 0.8125rem;
+			font-weight: 650;
+			letter-spacing: -0.02em;
+			color: var(--text);
+			margin: 0 0 calc(var(--space) * 2);
 		}
 
 		.feed-hint {
@@ -267,18 +289,28 @@
 			color: var(--brand-500);
 		}
 
+		.feed-hint--empty {
+			margin-bottom: 0;
+		}
+
 		.feed-loading {
 			margin: 0 0 calc(var(--space) * 2);
 			text-align: center;
 		}
 
 		.feed-list {
-			display: flex;
-			flex-direction: column;
+			display: grid;
+			grid-template-columns: 1fr;
 			gap: calc(var(--space) * 2);
 			margin: 0;
 			padding: 0;
 			list-style: none;
+		}
+
+		@media (min-width: 640px) {
+			.feed-list {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
 		}
 
 		.feed-row {
@@ -286,6 +318,7 @@
 			gap: calc(var(--space) * 2);
 			align-items: stretch;
 			min-width: 0;
+			min-height: 100%;
 			padding: calc(var(--space) * 2);
 			background: #0d0b14;
 			border: 1px solid var(--border);
@@ -298,6 +331,10 @@
 		a.feed-row:hover {
 			border-color: rgba(167, 139, 250, 0.35);
 			background: rgba(124, 58, 237, 0.06);
+		}
+
+		.feed-row--tip {
+			grid-column: 1 / -1;
 		}
 
 		.feed-row--static {
@@ -382,7 +419,16 @@
 
 		.loading-block {
 			text-align: center;
-			padding: calc(var(--space) * 6) calc(var(--space) * 2);
+			padding: calc(var(--space) * 8) calc(var(--space) * 2);
+		}
+
+		.shell:has(#user:not(.is-hidden)) {
+			align-items: flex-start;
+		}
+
+		.shell:has(#guest:not(.is-hidden)),
+		.shell:has(#loading:not(.is-hidden)) {
+			align-items: center;
 		}
 
 		.spinner {
@@ -425,13 +471,13 @@
 </head>
 <body>
 	<div class="shell">
-		<div class="wrap">
-			<div id="loading" class="loading-block">
-				<div class="spinner" aria-hidden="true"></div>
-				<p class="muted">One moment…</p>
-			</div>
+		<div id="loading" class="loading-block wrap wrap--signin">
+			<div class="spinner" aria-hidden="true"></div>
+			<p class="muted">One moment…</p>
+		</div>
 
-			<div id="guest" class="is-hidden">
+		<div id="guest" class="is-hidden">
+			<div class="wrap wrap--signin">
 				<div id="oauth-flash" class="alert is-hidden" role="alert"></div>
 				<div class="card card--loose">
 					<div class="brand-mark" aria-hidden="true">
@@ -479,37 +525,40 @@
 					</a>
 				</div>
 			</div>
+		</div>
 
-			<div id="user" class="is-hidden">
-				<p class="kicker">Client Demo · signed in with Parascene</p>
-				<div class="card">
-					<div class="row-top">
-						<div style="display: flex; align-items: center; gap: 16px; min-width: 0;">
-							<img id="avatar" class="avatar" alt="" width="64" height="64" hidden />
+		<div id="user" class="is-hidden">
+			<div class="wrap">
+				<div class="card card--session">
+					<header class="session-header">
+						<div class="session-identity">
+							<img id="avatar" class="avatar" alt="" width="48" height="48" hidden />
 							<div style="min-width: 0;">
 								<p id="display-name" class="name"></p>
 								<p id="username" class="handle"></p>
 							</div>
 						</div>
-						<span class="pill">Signed in</span>
+						<button type="button" class="btn-sign-out" id="logout">Sign out</button>
+					</header>
+					<div class="session-body">
+						<p class="session-kicker">Client Demo · Parascene OAuth</p>
+						<span class="section-label">Your Parascene feed</span>
+						<p class="feed-hint">
+							Sample call: <code>GET /api/feed</code> with your access token (same as the site home feed —
+							<a
+								href="https://www.parascene.com/help/developer/api"
+								target="_blank"
+								rel="noopener noreferrer"
+								>API overview</a
+							>).
+						</p>
+						<p id="feed-loading" class="feed-loading muted">Loading feed…</p>
+						<ul id="feed-preview" class="feed-list is-hidden" aria-label="Feed preview"></ul>
+						<p id="feed-empty" class="feed-hint feed-hint--empty is-hidden">
+							No items returned (or the feed could not be loaded). Open Parascene to follow creators and populate
+							your feed.
+						</p>
 					</div>
-					<span class="section-label">Your Parascene feed</span>
-					<p class="feed-hint">
-						This demo calls <code>GET /api/feed</code> on Parascene using your OAuth access token—the same route the
-						site uses for the home feed (<a
-							href="https://www.parascene.com/help/developer/api"
-							target="_blank"
-							rel="noopener noreferrer"
-							>API overview</a
-						>).
-					</p>
-					<p id="feed-loading" class="feed-loading muted">Loading feed…</p>
-					<ul id="feed-preview" class="feed-list is-hidden" aria-label="Feed preview"></ul>
-					<p id="feed-empty" class="feed-hint is-hidden" style="margin-bottom: calc(var(--space) * 3)">
-						No items returned (or the feed could not be loaded). Open Parascene to follow creators and populate your
-						feed.
-					</p>
-					<button type="button" class="btn--quiet" id="logout">Sign out</button>
 				</div>
 			</div>
 		</div>
