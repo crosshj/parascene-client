@@ -7,6 +7,17 @@ const {
 	SESSION_NAME
 } = require('./lib/session');
 
+/** Parascene often returns `picture` as a root-relative path; resolve against the Parascene origin (not the sample app host). */
+function absolutizeParasceneAssetUrl(value, origin) {
+	if (!value || typeof value !== 'string') return value;
+	const v = value.trim();
+	if (/^https?:\/\//i.test(v)) return v;
+	if (v.startsWith('//')) return 'https:' + v;
+	const base = origin.replace(/\/$/, '');
+	if (v.startsWith('/')) return base + v;
+	return v;
+}
+
 async function refreshTokens(payload, apiKey, clientId, base) {
 	const form = new URLSearchParams({
 		grant_type: 'refresh_token',
@@ -113,10 +124,18 @@ module.exports = async function handler(req, res) {
 		return;
 	}
 
+	if (userinfo && typeof userinfo.picture === 'string') {
+		userinfo = {
+			...userinfo,
+			picture: absolutizeParasceneAssetUrl(userinfo.picture, base)
+		};
+	}
+
 	res.setHeader('Cache-Control', 'no-store');
 	res.status(200).json({
 		signed_in: true,
 		userinfo,
+		parascene_base_url: base,
 		expires_at_ms: payload.expires_at_ms
 	});
 };

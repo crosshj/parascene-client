@@ -110,18 +110,29 @@
 			document.getElementById('guest').classList.remove('hidden');
 			document.getElementById('user').classList.add('hidden');
 		}
+		function pictureUrl(picture, parasceneBase) {
+			if (!picture || typeof picture !== 'string') return '';
+			var p = picture.trim();
+			if (/^https?:\/\//i.test(p)) return p;
+			if (p.startsWith('//')) return 'https:' + p;
+			var b = (parasceneBase || 'https://www.parascene.com').replace(/\/$/, '');
+			if (p.startsWith('/')) return b + p;
+			return p;
+		}
 		function showUser(data) {
 			document.getElementById('loading').classList.add('hidden');
 			document.getElementById('guest').classList.add('hidden');
 			document.getElementById('user').classList.remove('hidden');
 			var u = data.userinfo || {};
+			var base = data.parascene_base_url;
 			document.getElementById('display-name').textContent = u.name || u.preferred_username || 'User';
 			document.getElementById('username').textContent = u.preferred_username
 				? '@' + u.preferred_username
 				: 'id ' + (u.sub || '');
 			var img = document.getElementById('avatar');
-			if (u.picture) {
-				img.src = u.picture;
+			var src = pictureUrl(u.picture, base);
+			if (src) {
+				img.src = src;
 				img.hidden = false;
 			} else {
 				img.hidden = true;

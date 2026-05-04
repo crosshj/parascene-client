@@ -24,6 +24,8 @@ The browser **never** sees raw tokens; only the server decodes the cookie (signa
 
 Register redirect **`https://<project>.vercel.app/callback.html`** (and localhost for `vercel dev`).
 
+**Avatars:** `GET /oauth/userinfo` can return a **root-relative** `picture` path (e.g. `/api/images/...`). Browsers would load that on your Vercel host and 404. This sample **`GET /api/session`** rewrites `picture` to an absolute URL using **`PARASCENE_BASE_URL`**, and the home page does the same for the `<img>` as a backup.
+
 ## Deploy
 
 ```bash
