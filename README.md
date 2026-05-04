@@ -1,35 +1,30 @@
 # parascene-client
 
-Minimal static HTML + Vercel functions for **Sign in with Parascene** (OAuth + PKCE), token exchange with your **API key**, then **`GET /oauth/userinfo`**.
+Minimal static HTML + Vercel functions: **Sign in with Parascene**, **signed HttpOnly session cookie**, **`GET /api/session`** (loads profile after refresh, refreshes tokens when needed), **`POST /api/logout`**.
 
-No framework. Official details: [Log in with Parascene](https://www.parascene.com/help/developer/login-with-parascene).
+Details: [Log in with Parascene](https://www.parascene.com/help/developer/login-with-parascene).
 
 ## Flow
 
-1. User clicks **Sign in** → browser goes to **`GET /api/auth/start`** (same site).
-2. That handler generates PKCE + `state`, stores **`code_verifier`**, **`redirect_uri`**, and Parascene **`base` URL** in **HttpOnly cookies**, then **302** to Parascene **`/oauth/authorize`** (using **`PARASCENE_CLIENT_ID`** from env only on the server).
-3. After consent, Parascene redirects to **`/callback.html?code=…&state=…`**.
-4. Callback **`POST /api/exchange`** with `{ code, state }` and **cookies** (`credentials: 'same-origin'`). Exchange verifies `state`, reads PKCE from cookies, calls Parascene **`POST /oauth/token`** with **`PARASCENE_API_KEY`**, clears cookies, returns tokens (+ `parascene_base_url` for the demo UI).
+1. **`GET /api/auth/start`** — PKCE + HttpOnly PKCE cookies → **302** to Parascene `/oauth/authorize`.
+2. **`/callback.html`** — **`POST /api/exchange`** → clears PKCE cookies, sets **`psn_session`** (HMAC-signed; holds access + refresh tokens + expiry + base URL). Redirects **/**.
+3. **`GET /api/session`** — Reads **`psn_session`**, verifies signature, refreshes access token with **`refresh_token`** when near expiry, returns **`userinfo`** from Parascene.
+4. **`POST /api/logout`** — Clears **`psn_session`**.
+
+The browser **never** sees raw tokens; only the server decodes the cookie (signature verified with `PARASCENE_SESSION_SECRET` or `PARASCENE_API_KEY`).
+
+## Environment variables
+
+- **`PARASCENE_API_KEY`** (required) — `psn_…`; token + refresh calls.
+- **`PARASCENE_CLIENT_ID`** (required) — OAuth app id.
+- **`PARASCENE_BASE_URL`** (optional) — default `https://www.parascene.com`.
+- **`PARASCENE_SESSION_SECRET`** (optional) — HMAC key for session cookie; if omitted, **`PARASCENE_API_KEY`** is used (fine for demos).
 
 ## Parascene setup
 
-1. **Connections** (`/integrations`): **parascene API** key (`psn_…`).
-2. **Apps you build**: register redirect URI exactly, e.g. `https://<project>.vercel.app/callback.html` and `http://localhost:3000/callback.html` for `vercel dev`.
+Register redirect **`https://<project>.vercel.app/callback.html`** (and localhost for `vercel dev`).
 
-## Vercel environment variables
-
-- **`PARASCENE_API_KEY`** (required) — server-only; used in **`/api/exchange`**.
-- **`PARASCENE_CLIENT_ID`** (required) — used in **`/api/auth/start`** and **`/api/exchange`**; never embedded in static HTML.
-- **`PARASCENE_BASE_URL`** (optional) — defaults to `https://www.parascene.com`.
-
-## Files
-
-- `index.html` — link to `/api/auth/start`.
-- `callback.html` — posts `{ code, state }` to `/api/exchange` with cookies.
-- `api/auth/start.js` — PKCE + cookies + redirect to Parascene.
-- `api/exchange.js` — token exchange + clear cookies.
-
-## Deploy & local
+## Deploy
 
 ```bash
 vercel
@@ -38,5 +33,3 @@ vercel
 ```bash
 vercel dev
 ```
-
-Open the URL Vercel serves (not `file://`).

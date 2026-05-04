@@ -2,6 +2,8 @@
  * Server-only: exchange OAuth code using API key + PKCE verifier from HttpOnly cookies.
  */
 
+const { packSession, setSessionHeader, sessionFromTokenResponse } = require('./lib/session');
+
 const COOKIE = {
 	STATE: 'psn_oauth_state',
 	VERIFIER: 'psn_oauth_verifier',
@@ -42,13 +44,15 @@ module.exports = async function handler(req, res) {
 	const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
 	const secure = proto === 'https';
 
-	const clearAll = () => {
-		res.setHeader('Set-Cookie', [
+	const clearAll = (sessionCookieLine) => {
+		const list = [
 			clearCookie(COOKIE.STATE, secure),
 			clearCookie(COOKIE.VERIFIER, secure),
 			clearCookie(COOKIE.REDIRECT, secure),
 			clearCookie(COOKIE.BASE, secure)
-		]);
+		];
+		if (sessionCookieLine) list.push(sessionCookieLine);
+		res.setHeader('Set-Cookie', list);
 	};
 
 	if (!apiKey || !clientId) {
@@ -121,13 +125,20 @@ module.exports = async function handler(req, res) {
 		data = { raw: text };
 	}
 
-	clearAll();
-
 	if (!tokenRes.ok) {
+		clearAll();
 		res.status(tokenRes.status).json(data);
 		return;
 	}
 
-	data.parascene_base_url = baseCookie.replace(/\/$/, '');
+	const baseNorm = baseCookie.replace(/\/$/, '');
+	const sessPayload = sessionFromTokenResponse(data, baseNorm);
+	const packed = packSession(sessPayload);
+	const sessionLine = packed ? setSessionHeader(packed, secure, 60 * 60 * 24 * 14) : null;
+
+	clearAll(sessionLine);
+
+	data.parascene_base_url = baseNorm;
+	data.signed_in = true;
 	res.status(200).json(data);
 };

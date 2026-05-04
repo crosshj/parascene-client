@@ -3,17 +3,19 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Parascene callback</title>
+	<title>Signing you in…</title>
 	<style>
-		body { font-family: system-ui, sans-serif; max-width: 36rem; margin: 2rem auto; padding: 0 1rem; }
-		pre { background: #f4f4f4; padding: 1rem; overflow: auto; font-size: 0.8rem; }
+		body {
+			font-family: system-ui, sans-serif;
+			max-width: 28rem;
+			margin: 3rem auto;
+			padding: 0 1rem;
+			color: #333;
+		}
 	</style>
 </head>
 <body>
-	<h1>Callback</h1>
-	<p id="status">Working…</p>
-	<pre id="out"></pre>
-	<p><a href="/">Back</a></p>
+	<p id="status">Completing sign-in…</p>
 	<script>
 		(function () {
 			var params = new URLSearchParams(window.location.search);
@@ -21,23 +23,17 @@
 			var code = params.get('code');
 			var returnedState = params.get('state');
 
-			function show(obj) {
-				document.getElementById('out').textContent = JSON.stringify(obj, null, 2);
-			}
-
 			if (err) {
 				var why = params.get('error_description') || '';
-				var line = 'OAuth error: ' + err + (why ? ' — ' + why : '');
-				if (err === 'access_denied') {
-					line = 'You chose not to authorize this app (access_denied).';
-				}
-				document.getElementById('status').textContent = line;
-				show(Object.fromEntries(params));
+				var msg = 'OAuth error: ' + err + (why ? ' — ' + why : '');
+				if (err === 'access_denied') msg = 'You chose not to authorize this app.';
+				document.getElementById('status').textContent = msg;
+				document.body.appendChild(document.createElement('p')).innerHTML = '<a href="/">Back home</a>';
 				return;
 			}
 			if (!code || !returnedState) {
 				document.getElementById('status').textContent = 'Missing code or state.';
-				show({ code: !!code, state: returnedState });
+				document.body.appendChild(document.createElement('p')).innerHTML = '<a href="/">Back home</a>';
 				return;
 			}
 
@@ -48,29 +44,20 @@
 				body: JSON.stringify({ code: code, state: returnedState })
 			})
 				.then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, body: j }; }); })
-				.then(async function (res) {
+				.then(function (res) {
 					if (!res.ok) {
-						document.getElementById('status').textContent = 'Token exchange failed (' + res.status + ')';
-						show(res.body);
+						document.getElementById('status').textContent = 'Token exchange failed (' + res.status + ').';
+						var pre = document.createElement('pre');
+						pre.textContent = JSON.stringify(res.body, null, 2);
+						document.body.appendChild(pre);
+						document.body.appendChild(document.createElement('p')).innerHTML = '<a href="/">Back home</a>';
 						return;
 					}
-					document.getElementById('status').textContent = 'Tokens received. Calling GET /oauth/userinfo…';
-					var at = res.body.access_token;
-					if (!at) {
-						show(res.body);
-						return;
-					}
-					var base = (res.body.parascene_base_url || 'https://www.parascene.com').replace(/\/$/, '');
-					var ui = await fetch(base + '/oauth/userinfo', {
-						headers: { Authorization: 'Bearer ' + at }
-					});
-					var profile = await ui.json();
-					document.getElementById('status').textContent = 'Done.';
-					show({ token_response: res.body, userinfo: profile });
+					document.getElementById('status').textContent = 'Signed in. Redirecting…';
+					window.location.replace('/');
 				})
 				.catch(function (e) {
-					document.getElementById('status').textContent = 'Request failed';
-					show({ error: String(e) });
+					document.getElementById('status').textContent = 'Request failed: ' + e;
 				});
 		})();
 	</script>

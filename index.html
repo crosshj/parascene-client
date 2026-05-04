@@ -3,35 +3,144 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>Parascene sign-in (minimal demo)</title>
+	<title>Parascene demo</title>
 	<style>
-		body { font-family: system-ui, sans-serif; max-width: 36rem; margin: 2rem auto; padding: 0 1rem; }
+		:root {
+			--bg: #fafafa;
+			--card: #fff;
+			--border: #ddd;
+			--muted: #555;
+			--text: #111;
+		}
+		body {
+			font-family: system-ui, -apple-system, sans-serif;
+			max-width: 28rem;
+			margin: 0 auto;
+			padding: 2rem 1rem;
+			background: var(--bg);
+			color: var(--text);
+			line-height: 1.45;
+		}
+		h1 { font-size: 1.35rem; margin: 0 0 0.5rem; }
+		.lead { color: var(--muted); font-size: 0.92rem; margin: 0 0 1.25rem; }
 		a.button, button {
 			display: inline-block;
-			padding: 0.5rem 1rem;
+			padding: 0.55rem 1rem;
 			cursor: pointer;
 			text-decoration: none;
 			color: inherit;
-			border: 1px solid #888;
-			border-radius: 6px;
+			border: 1px solid var(--border);
+			border-radius: 8px;
 			background: #eee;
 			font: inherit;
 		}
-		a.button:hover, button:hover { background: #e0e0e0; }
-		code { font-size: 0.85em; }
+		a.button:hover, button:hover { background: #e4e4e4; }
+		button.secondary { background: var(--card); }
+		.card {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			padding: 1rem 1.1rem;
+			margin-top: 1rem;
+		}
+		.card h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+		.user-row {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			margin-bottom: 0.75rem;
+		}
+		.avatar {
+			width: 48px;
+			height: 48px;
+			border-radius: 50%;
+			object-fit: cover;
+			background: #eee;
+		}
+		.user-meta { min-width: 0; }
+		.user-meta .name { font-weight: 600; }
+		.user-meta .sub { font-size: 0.85rem; color: var(--muted); word-break: break-all; }
+		pre.raw {
+			font-size: 0.72rem;
+			background: #f4f4f4;
+			padding: 0.75rem;
+			border-radius: 6px;
+			overflow: auto;
+			max-height: 12rem;
+			margin: 0.5rem 0 0;
+		}
+		.hint { font-size: 0.82rem; color: var(--muted); margin-top: 1rem; }
+		#loading { color: var(--muted); }
+		.hidden { display: none !important; }
 	</style>
 </head>
 <body>
 	<h1>Parascene demo</h1>
-	<p>
-		Sign in uses <code>GET /api/auth/start</code>: your server issues PKCE, sets HttpOnly cookies, and redirects to Parascene.
-		Token exchange uses <code>PARASCENE_API_KEY</code> only in <code>POST /api/exchange</code>.
+	<p class="lead">
+		<code>GET /api/auth/start</code> → Parascene → session cookie → <code>GET /api/session</code> after refresh.
 	</p>
-	<p>
-		<a class="button" href="/api/auth/start">Sign in with Parascene</a>
-	</p>
-	<p style="color: #666; font-size: 0.9rem;">
-		Requires <code>PARASCENE_API_KEY</code> and <code>PARASCENE_CLIENT_ID</code> in Vercel (no client id in this file).
-	</p>
+
+	<p id="loading">Checking session…</p>
+
+	<div id="guest" class="hidden">
+		<p><a class="button" href="/api/auth/start">Sign in with Parascene</a></p>
+		<p class="hint">Needs <code>PARASCENE_API_KEY</code> and <code>PARASCENE_CLIENT_ID</code> in Vercel.</p>
+	</div>
+
+	<div id="user" class="hidden">
+		<div class="card">
+			<h2>Signed in</h2>
+			<div class="user-row">
+				<img id="avatar" class="avatar" alt="" width="48" height="48" />
+				<div class="user-meta">
+					<div id="display-name" class="name"></div>
+					<div id="username" class="sub"></div>
+				</div>
+			</div>
+			<pre id="userinfo-raw" class="raw" aria-label="User profile JSON"></pre>
+			<p style="margin: 0.75rem 0 0;">
+				<button type="button" class="secondary" id="logout">Log out</button>
+			</p>
+		</div>
+	</div>
+
+	<script>
+		function showGuest() {
+			document.getElementById('loading').classList.add('hidden');
+			document.getElementById('guest').classList.remove('hidden');
+			document.getElementById('user').classList.add('hidden');
+		}
+		function showUser(data) {
+			document.getElementById('loading').classList.add('hidden');
+			document.getElementById('guest').classList.add('hidden');
+			document.getElementById('user').classList.remove('hidden');
+			var u = data.userinfo || {};
+			document.getElementById('display-name').textContent = u.name || u.preferred_username || 'User';
+			document.getElementById('username').textContent = u.preferred_username
+				? '@' + u.preferred_username
+				: 'id ' + (u.sub || '');
+			var img = document.getElementById('avatar');
+			if (u.picture) {
+				img.src = u.picture;
+				img.hidden = false;
+			} else {
+				img.hidden = true;
+			}
+			document.getElementById('userinfo-raw').textContent = JSON.stringify(u, null, 2);
+		}
+		fetch('/api/session', { credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				if (data.signed_in) showUser(data);
+				else showGuest();
+			})
+			.catch(function () {
+				document.getElementById('loading').textContent = 'Could not reach /api/session (use Vercel or vercel dev).';
+			});
+		document.getElementById('logout').addEventListener('click', function () {
+			fetch('/api/logout', { method: 'POST', credentials: 'same-origin' })
+				.then(function () { window.location.reload(); });
+		});
+	</script>
 </body>
 </html>
